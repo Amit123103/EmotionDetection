@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: emotion-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python3 -m uvicorn main:app --host 0.0.0.0 --port $PORT
+    branch: main
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
