@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+deepface
+tf-keras
+opencv-python-headless
+python-multipart
+numpy
+websockets
+onnxruntime
+requests

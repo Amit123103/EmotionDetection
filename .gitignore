@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+
+# Large Model Files (GitHub limit is 100MB, and these are auto-downloaded)
+*.caffemodel
+*.prototxt
+*.onnx
+*.weights
+*.xml
+
+# Environment Variables
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Build
+dist/
+build/
