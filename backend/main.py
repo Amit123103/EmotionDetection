@@ -66,11 +66,20 @@ async def websocket_endpoint(websocket: WebSocket):
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
             if frame is None:
+                print("Error: Failed to decode image frame")
                 continue
+            
+            # print(f"Frame received: {frame.shape}")
 
             # Detect emotion & Age
             # We pass the latest speech text to generating summary
             results = detector.detect_all(frame, latest_speech_text)
+            
+            if not results:
+                # print("No results found (No face detected)")
+                pass
+            else:
+                print(f"Results found: {len(results)} faces")
             
             # Send results back
             await websocket.send_json({"results": results})

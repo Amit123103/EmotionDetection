@@ -26,8 +26,21 @@ class EmotionDetector:
         self.face_model = "res10_300x300_ssd_iter_140000.caffemodel"
 
         # 5. EYE CASCADE (Keep for eye detection)
-        self.eye_cascade_path = cv2.data.haarcascades + 'haarcascade_eye.xml'
-        self.eye_cascade = cv2.CascadeClassifier(self.eye_cascade_path)
+        # Fix for Render/Headless: cv2.data.haarcascades might be invalid
+        try:
+            self.eye_cascade_path = cv2.data.haarcascades + 'haarcascade_eye.xml'
+            if not os.path.exists(self.eye_cascade_path):
+                 print(f"Warning: Cascade not found at {self.eye_cascade_path}. Checking local...")
+                 self.eye_cascade_path = "haarcascade_eye.xml"
+            
+            if not os.path.exists(self.eye_cascade_path):
+                 print("Downloading haarcascade_eye.xml...")
+                 self.download_file("https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_eye.xml", "haarcascade_eye.xml")
+                 self.eye_cascade_path = "haarcascade_eye.xml"
+
+            self.eye_cascade = cv2.CascadeClassifier(self.eye_cascade_path)
+        except Exception as e:
+            print(f"Error initializing Eye Cascade: {e}")
         
         self.age_net = None
         self.gender_net = None
@@ -38,13 +51,14 @@ class EmotionDetector:
         self.age_history = deque(maxlen=30) # Store last 30 frames (~1 sec)
 
         # Initialize
+        print("Initializing EmotionDetector...")
         self.ensure_models_exist()
         self.load_models()
 
     def ensure_models_exist(self):
         # 1. EMOTION ONNX
         if not os.path.exists(self.emotion_model_path) or os.path.getsize(self.emotion_model_path) < 1000:
-            print("Downloading Emotion Model...")
+            print(f"Downloading Emotion Model to {self.emotion_model_path}...")
             self.download_file("https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx", self.emotion_model_path)
 
         # 2. AGE MODEL
@@ -64,6 +78,7 @@ class EmotionDetector:
             self.download_file("https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt", self.face_proto)
         if not os.path.exists(self.face_model) or os.path.getsize(self.face_model) < 1000000:
             print("Downloading Advanced Face Model...")
+            # Updated Link just in case
             self.download_file("https://github.com/opencv/opencv_3rdparty/raw/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel", self.face_model)
 
     def download_file(self, url, filename):
@@ -74,7 +89,8 @@ class EmotionDetector:
                 with open(filename, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=1024):
                          if chunk: f.write(chunk)
-                print(f"Downloaded {filename} successfully ({os.path.getsize(filename)} bytes).")
+                current_size = os.path.getsize(filename)
+                print(f"Downloaded {filename} successfully ({current_size} bytes).")
             else:
                 print(f"Failed to download {filename}: HTTP {response.status_code}")
         except Exception as e:
@@ -82,35 +98,47 @@ class EmotionDetector:
 
     def load_models(self):
         # Load Emotion
-        print("Loading Emotion Model...")
+        print(f"Loading Emotion Model from {self.emotion_model_path}...")
         try:
-            self.ort_session = ort.InferenceSession(self.emotion_model_path)
-            self.input_name = self.ort_session.get_inputs()[0].name
-            print("Emotion Model Loaded.")
+            if os.path.exists(self.emotion_model_path):
+                self.ort_session = ort.InferenceSession(self.emotion_model_path)
+                self.input_name = self.ort_session.get_inputs()[0].name
+                print("Emotion Model Loaded Successfully.")
+            else:
+                print("Error: Emotion Model file not found!")
         except Exception as e:
-            print(f"Error loading Emotion model: {e}")
+            print(f"CRITICAL Error loading Emotion model: {e}")
 
         # Load Age
         print("Loading Age Model...")
         try:
-            self.age_net = cv2.dnn.readNet(self.age_model, self.age_proto)
-            print("Age Model Loaded.")
+             if os.path.exists(self.age_model) and os.path.exists(self.age_proto):
+                self.age_net = cv2.dnn.readNet(self.age_model, self.age_proto)
+                print("Age Model Loaded.")
+             else:
+                print("Error: Age Model files not found!")
         except Exception as e:
             print(f"Error loading Age model: {e}")
 
         # Load Gender
         print("Loading Gender Model...")
         try:
-            self.gender_net = cv2.dnn.readNet(self.gender_model, self.gender_proto)
-            print("Gender Model Loaded.")
+            if os.path.exists(self.gender_model) and os.path.exists(self.gender_proto):
+                self.gender_net = cv2.dnn.readNet(self.gender_model, self.gender_proto)
+                print("Gender Model Loaded.")
+            else:
+                print("Error: Gender Model files not found!")
         except Exception as e:
             print(f"Error loading Gender model: {e}")
 
         # Load Face
         print("Loading Face Model...")
         try:
-            self.face_net = cv2.dnn.readNet(self.face_model, self.face_proto)
-            print("Face Model Loaded.")
+            if os.path.exists(self.face_model) and os.path.exists(self.face_proto):
+                self.face_net = cv2.dnn.readNet(self.face_model, self.face_proto)
+                print("Face Model Loaded.")
+            else:
+                print("Error: Face Model files not found!")
         except Exception as e:
             print(f"Error loading Face model: {e}")
 
@@ -170,6 +198,7 @@ class EmotionDetector:
 
     def detect_all(self, frame, speech_text=""):
         if self.ort_session is None or self.face_net is None:
+            # print("Models not loaded, skipping detection")
             return []
 
         # DNN Face Detection
@@ -183,9 +212,9 @@ class EmotionDetector:
         # Debug: Print max confidence to check if model is working
         if detections.shape[2] > 0:
             max_conf = np.max(detections[0, 0, :, 2])
-            if max_conf < 0.3:
+            # if max_conf < 0.3:
                # Only print if no good detections to avoid spam
-               print(f"Low confidence face: {max_conf:.4f}")
+               # print(f"Low confidence face: {max_conf:.4f}")
         
         results = []
         for i in range(0, detections.shape[2]):
@@ -220,7 +249,10 @@ class EmotionDetector:
                     else:
                          roi_gray_eye = roi_gray
                     
-                    eyes = self.eye_cascade.detectMultiScale(roi_gray_eye)
+                    eyes = []
+                    if self.eye_cascade:
+                         eyes = self.eye_cascade.detectMultiScale(roi_gray_eye)
+                    
                     eye_boxes = [{"x": int(x+ex), "y": int(y+ey), "w": int(ew), "h": int(eh)} for (ex, ey, ew, eh) in eyes]
 
                     # 2. Predict Emotion
@@ -247,6 +279,8 @@ class EmotionDetector:
                     })
                 except Exception as e:
                     print(f"Error processing face: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
 
         return results
