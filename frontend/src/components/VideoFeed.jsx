@@ -152,7 +152,7 @@ const VideoFeed = ({ onEmotionDetected }) => {
                     data: dataUrl.split(',')[1]
                 }));
             }
-        }, 200);
+        }, 100);
         return () => clearInterval(interval);
     }, [isStreaming]);
 

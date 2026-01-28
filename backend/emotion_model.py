@@ -212,7 +212,7 @@ class EmotionDetector:
         # Debug: Print max confidence to check if model is working
         if detections.shape[2] > 0:
             max_conf = np.max(detections[0, 0, :, 2])
-            # if max_conf < 0.3:
+            # if max_conf < 0.2:
                # Only print if no good detections to avoid spam
                # print(f"Low confidence face: {max_conf:.4f}")
         
@@ -220,8 +220,8 @@ class EmotionDetector:
         for i in range(0, detections.shape[2]):
             confidence = detections[0, 0, i, 2]
             
-            # Lower threshold to 0.3 to catch faces more easily
-            if confidence > 0.3:
+            # Lower threshold to 0.2 to catch faces more easily
+            if confidence > 0.2:
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (startX, startY, endX, endY) = box.astype("int")
 
