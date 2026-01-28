@@ -84,7 +84,7 @@ const VideoFeed = ({ onEmotionDetected }) => {
     // WebSocket Init
     useEffect(() => {
         // Connect to Live Render Backend
-        ws.current = new WebSocket('wss://emotiondetection-w0t2.onrender.com/ws/detect');
+        ws.current = new WebSocket('wss://emotiondetection-dd7t.onrender.com/ws/detect');
 
         ws.current.onopen = () => console.log('Connected to Live Backend');
 
