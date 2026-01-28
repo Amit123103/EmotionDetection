@@ -49,6 +49,11 @@ class EmotionDetector:
 
         # Stabilization History
         self.age_history = deque(maxlen=30) # Store last 30 frames (~1 sec)
+        
+        # Caching mechanisms
+        self.frame_count = 0
+        self.cached_age = "Unknown"
+        self.cached_gender = "Unknown"
 
         # Initialize
         print("Initializing EmotionDetector...")
@@ -249,9 +254,9 @@ class EmotionDetector:
                     else:
                          roi_gray_eye = roi_gray
                     
-                    eyes = []
                     if self.eye_cascade:
-                         eyes = self.eye_cascade.detectMultiScale(roi_gray_eye)
+                         # Tuned parameters: scaleFactor=1.1, minNeighbors=5 (Standard)
+                         eyes = self.eye_cascade.detectMultiScale(roi_gray_eye, scaleFactor=1.1, minNeighbors=5)
                     
                     eye_boxes = [{"x": int(x+ex), "y": int(y+ey), "w": int(ew), "h": int(eh)} for (ex, ey, ew, eh) in eyes]
 
@@ -260,11 +265,13 @@ class EmotionDetector:
                     outputs = self.ort_session.run(None, {self.input_name: input_tensor})
                     emotion = self.emotions[np.argmax(outputs[0][0])]
                     
-                    # 3. Predict Age
-                    age = self.predict_age(roi_color)
-
-                    # 4. Predict Gender
-                    gender = self.predict_gender(roi_color)
+                    # 3. Predict Age & Gender (Cached every 30 frames)
+                    if self.frame_count % 30 == 0:
+                        self.cached_age = self.predict_age(roi_color)
+                        self.cached_gender = self.predict_gender(roi_color)
+                    
+                    age = self.cached_age
+                    gender = self.cached_gender
                     
                     # 5. Generate Summary
                     summary = self.generate_summary(emotion, age, gender, len(eyes) > 0, speech_text)
@@ -282,5 +289,7 @@ class EmotionDetector:
                     import traceback
                     traceback.print_exc()
                     continue
+        
+        self.frame_count += 1
 
         return results
